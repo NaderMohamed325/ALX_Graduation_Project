@@ -95,7 +95,7 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
-    authentication_classes = [CookieTokenAuthentication]
+    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
