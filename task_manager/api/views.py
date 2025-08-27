@@ -7,11 +7,32 @@ from .serializers import UserSerializer, TaskSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from django.conf import settings
+from django.utils import timezone
 from .models import Task
 from django.shortcuts import get_object_or_404
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+import datetime
+
+
+class AuthRateThrottle(AnonRateThrottle):
+    """
+    Throttling for auth endpoints to prevent brute force attacks
+    """
+    rate = '5/min'
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class RegisterView(APIView):
+    throttle_classes = [AuthRateThrottle]
+    
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
@@ -36,6 +57,8 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    throttle_classes = [AuthRateThrottle]
+    
     def post(self, request):
         username = request.data.get("username")
         email = request.data.get("email")
@@ -63,12 +86,28 @@ class LoginView(APIView):
                 key="auth_token",
                 value=token.key,
                 httponly=True,
-                secure=False,     # set to True in production
-                samesite="Lax"
+                secure=not settings.DEBUG,  # True in production, False in dev
+                samesite="Strict"
             )
             return response
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogoutView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        # Delete the token to force re-login
+        if hasattr(request.user, 'auth_token'):
+            request.user.auth_token.delete()
+        
+        # Clear the auth cookie
+        response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+        response.delete_cookie("auth_token")
+        
+        return response
 
 
 class CookieTokenAuthentication(TokenAuthentication):
@@ -119,17 +158,36 @@ class DeleteProfileView(APIView):
 class TaskListCreateView(APIView):
     authentication_classes = [CookieTokenAuthentication]
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request):
+        # Get tasks for the current user
         qs = Task.objects.filter(user=request.user)
+        
+        # Filter by completion status
         completed = request.query_params.get('completed')
         if completed is not None:
             if completed.lower() == 'true':
                 qs = qs.filter(completed=True)
             elif completed.lower() == 'false':
                 qs = qs.filter(completed=False)
-        serializer = TaskSerializer(qs, many=True)
-        return Response(serializer.data)
+                
+        # Search by title/description
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+        
+        # Ordering
+        ordering = request.query_params.get('ordering')
+        if ordering:
+            if ordering in ['created_at', '-created_at', 'due_date', '-due_date', 'title', '-title']:
+                qs = qs.order_by(ordering)
+            
+        # Paginate results    
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = TaskSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = TaskSerializer(data=request.data)
