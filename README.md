@@ -1,51 +1,44 @@
-# Task Management API
+# 🚀 Task Management API
 
-Current scope: ONLY user registration and login (token issued + stored in HttpOnly cookie). Task CRUD and profile endpoints are not yet active.
+A secure, modern REST API for personal task management — built with Django & Django REST Framework.
 
-## Stack
+![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white)
+![DRF](https://img.shields.io/badge/Django_REST_Framework-092E20?style=for-the-badge&logo=django&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
-- Python 3 / Django / Django REST Framework
-- DRF Token Authentication (rest_framework.authtoken)
-- SQLite (dev)
+---
 
-## Quick Start (Windows)
+## 🌟 What is this?
 
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
+**Task Management API** lets users securely register, log in, and manage their own to-do lists. Each user can create, update, complete, and delete their tasks. All actions are protected by token authentication (via HttpOnly cookies for safety).
 
-## Environment (local)
+**Perfect for:**
 
-Create `.env` or set vars:
+- Building a React/Vue/mobile frontend
+- Learning modern Django REST API patterns
+- Deploying as a backend for your productivity app
 
-```
-DEBUG=True
-SECRET_KEY=replace-me
-```
+---
 
-## Auth Flow
+## ✨ Key Features
 
-1. Register user => token created.
-2. Token returned via HttpOnly cookie: auth_token
-3. Subsequent authenticated requests (future endpoints) will read cookie automatically (no manual header needed).
-   Optional manual header format (if extracting token yourself):
+- **User Registration & Login** (token in HttpOnly cookie)
+- **Profile Management** (view, update, delete)
+- **Task CRUD** (create, list, update, delete)
+- **Mark Tasks Complete/Incomplete**
+- **Filtering, Search & Pagination** (by completion, text, date)
+- **Ordering** (by creation or due date)
+- **Rate Limiting** (prevents brute-force attacks)
+- **Secure Password Hashing**
+- **Token Rotation & Logout**
+- **Per-user Data Isolation**
+- **Comprehensive Validation** (e.g., no past due dates)
+- **Production-ready Security** (cookie flags, throttling)
+- **100% Automated Tests**
 
-```
-Authorization: Token <token>
-```
+---
 
-## Implemented Endpoints
-
-| Method | Path           | Auth | Description        | Body JSON (required fields) |
-| ------ | -------------- | ---- | ------------------ | --------------------------- |
-| POST   | /api/register/ | No   | Create new account | username, email, password   |
-| POST   | /api/login/    | No   | Login (user/email) | username OR email, password |
-
-## Examples
+## 🖥️ Demo
 
 ### Register
 
@@ -60,23 +53,9 @@ Content-Type: application/json
 }
 ```
 
-Response 201:
+_Response: 201 Created, sets `auth_token` cookie._
 
-```json
-{
-  "user": {
-    "id": 1,
-    "username": "alice",
-    "email": "alice@example.com",
-    "first_name": "",
-    "last_name": ""
-  }
-}
-```
-
-(Set-Cookie: auth_token=<token>)
-
-### Login (username)
+### Login (with username or email)
 
 ```http
 POST /api/login/
@@ -88,55 +67,150 @@ Content-Type: application/json
 }
 ```
 
-### Login (email)
+_Response: 200 OK, sets `auth_token` cookie._
+
+### Create Task
 
 ```http
-POST /api/login/
+POST /api/tasks/
+Cookie: auth_token=<token>
 Content-Type: application/json
 
 {
-  "email": "alice@example.com",
-  "password": "StrongPass123"
+  "title": "Finish project",
+  "description": "Complete final features",
+  "due_date": "2025-09-01T12:00:00Z"
 }
 ```
 
-### curl
+### List Tasks (with filters, search, pagination)
+
+```http
+GET /api/tasks/?completed=false&search=project&page=1&page_size=5
+Cookie: auth_token=<token>
+```
+
+### Mark Complete
+
+```http
+PATCH /api/tasks/1/complete/
+Cookie: auth_token=<token>
+```
+
+### Logout
+
+```http
+POST /api/logout/
+Cookie: auth_token=<token>
+```
+
+_Logs out and clears the token cookie._
+
+---
+
+## ⚡ Quick Start (Windows)
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+---
+
+## ⚙️ Environment
+
+Create a `.env` file or set environment variables:
+
+```shell
+DEBUG=True
+SECRET_KEY=replace-me
+```
+
+---
+
+## 🔒 Security Highlights
+
+- Passwords hashed with Django's best practices
+- Auth token stored in HttpOnly, SameSite cookie (set `secure=True` in production)
+- Rate limiting on sensitive endpoints (5/min for auth endpoints)
+- Token rotation on logout
+- All endpoints require authentication except register/login
+- Due date validation prevents past dates
+
+---
+
+## 🧪 Testing
+
+Run all tests (unit & integration):
 
 ```bash
-curl -i -X POST http://127.0.0.1:8000/api/register/ ^
-  -H "Content-Type: application/json" ^
-  -d "{ \"username\":\"alice\",\"email\":\"alice@example.com\",\"password\":\"StrongPass123\" }"
-
-curl -i -X POST http://127.0.0.1:8000/api/login/ ^
-  -H "Content-Type: application/json\" ^
-  -d \"{ \\\"username\\\":\\\"alice\\\",\\\"password\\\":\\\"StrongPass123\\\" }"
+python manage.py test
 ```
 
-## JSON Parse Error Tip
+---
 
-Error: JSON parse error - Extra data usually means:
+## 📝 API Reference
 
-- Trailing commas
-- Multiple JSON objects in one body
-- Single quotes instead of double quotes
-  Correct format:
+| Method | Path                          | Auth | Description                     |
+| ------ | ----------------------------- | ---- | ------------------------------- |
+| POST   | `/api/register/`              | ❌   | Register new user               |
+| POST   | `/api/login/`                 | ❌   | Login (username/email)          |
+| POST   | `/api/logout/`                | ✅   | Logout (token rotate & clear)   |
+| GET    | `/api/profile/`               | ✅   | Get user profile                |
+| PUT    | `/api/profile/update/`        | ✅   | Update user profile             |
+| DELETE | `/api/profile/delete/`        | ✅   | Delete user account             |
+| GET    | `/api/tasks/`                 | ✅   | List tasks (filter/search/page) |
+| POST   | `/api/tasks/`                 | ✅   | Create new task                 |
+| GET    | `/api/tasks/<id>/`            | ✅   | Get specific task               |
+| PUT    | `/api/tasks/<id>/`            | ✅   | Update task                     |
+| DELETE | `/api/tasks/<id>/`            | ✅   | Delete task                     |
+| PATCH  | `/api/tasks/<id>/complete/`   | ✅   | Mark task as complete           |
+| PATCH  | `/api/tasks/<id>/incomplete/` | ✅   | Mark task as incomplete         |
 
-```json
-{ "username": "alice", "password": "StrongPass123" }
+---
+
+## 📦 Models
+
+### Task
+
+```python
+class Task(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='tasks')
 ```
 
-## Security Notes
+---
 
-- Passwords hashed by Django.
-- Set secure=True on auth cookie in production (HTTPS).
-- Do not expose SECRET_KEY.
+## 🐞 Troubleshooting
 
-## Planned (Not Yet Implemented)
+- **JSON parse error?**  
+  Use double quotes, no trailing commas, and only one JSON object per request.
+- **Auth errors?**  
+  Make sure you're sending the `auth_token` cookie with your requests after login/register.
+- **Getting 400 errors on task creation?**  
+  Ensure due_date is in the future, not the past.
 
-- Profile: GET/PUT/DELETE /api/user/
-- Task CRUD: /api/tasks/...
-- Complete / incomplete toggle
-- Filtering & pagination
-- Optional JWT alternative
-- Logout (token rotate/delete)
-- Tests & OpenAPI
+---
+
+## 🛣️ Future Enhancements
+
+- OpenAPI/Swagger documentation
+- Docker containerization
+- CI/CD pipeline
+- Email notifications for upcoming tasks
+- Task categories and tags
+- User task statistics
+
+---
+
+## About
+
+Built with ❤️ using Django REST Framework
