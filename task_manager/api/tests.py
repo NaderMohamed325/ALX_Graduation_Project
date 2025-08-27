@@ -2,7 +2,10 @@ from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from django.contrib.auth.models import User
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from .models import Task
+from django.utils import timezone
+import datetime
 
 
 class AuthTests(APITestCase):
