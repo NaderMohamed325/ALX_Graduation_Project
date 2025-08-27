@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from django.utils import timezone
 from .models import Task
 from django.contrib.auth.models import User
 
@@ -9,6 +9,14 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = ['id', 'title', 'description', 'due_date', 'completed', 'created_at', 'updated_at']
         read_only_fields = ['id', 'completed', 'created_at', 'updated_at']
+        
+    def validate_due_date(self, value):
+        """
+        Check that the due date is not in the past
+        """
+        if value and value < timezone.now():
+            raise serializers.ValidationError("Due date cannot be in the past")
+        return value
 
 
 class UserSerializer(serializers.ModelSerializer):
