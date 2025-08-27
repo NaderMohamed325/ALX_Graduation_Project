@@ -9,21 +9,52 @@ import datetime
 
 
 class AuthTests(APITestCase):
-	def test_register_and_login(self):
-		r = self.client.post(reverse('register'), {
-			'username': 'alice',
-			'email': 'alice@example.com',
-			'password': 'StrongPass123'
-		}, format='json')
-		self.assertEqual(r.status_code, status.HTTP_201_CREATED)
-		self.assertIn('user', r.data)
+    def test_register_and_login(self):
+        r = self.client.post(reverse('register'), {
+            'username': 'alice',
+            'email': 'alice@example.com',
+            'password': 'StrongPass123'
+        }, format='json')
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertIn('user', r.data)
 
-		r2 = self.client.post(reverse('login'), {
-			'username': 'alice',
-			'password': 'StrongPass123'
-		}, format='json')
-		self.assertEqual(r2.status_code, status.HTTP_200_OK)
-		self.assertIn('user', r2.data)
+        r2 = self.client.post(reverse('login'), {
+            'username': 'alice',
+            'password': 'StrongPass123'
+        }, format='json')
+        self.assertEqual(r2.status_code, status.HTTP_200_OK)
+        self.assertIn('user', r2.data)
+        
+    def test_logout(self):
+        """Test logout endpoint"""
+        user = User.objects.create_user(username='testuser', email='test@example.com', password='password123')
+        token, _ = Token.objects.get_or_create(user=user)
+        self.client.cookies['auth_token'] = token.key
+        response = self.client.post(reverse('logout'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Check token was deleted from database
+        self.assertEqual(Token.objects.filter(user=user).count(), 0)
+        
+    def test_login_with_email(self):
+        """Test login with email"""
+        User.objects.create_user(username='testuser', email='test@example.com', password='password123')
+        data = {
+            'email': 'test@example.com',
+            'password': 'password123'
+        }
+        response = self.client.post(reverse('login'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue('auth_token' in response.cookies)
+        
+    def test_reject_invalid_credentials(self):
+        """Test invalid login credentials"""
+        User.objects.create_user(username='testuser', email='test@example.com', password='password123')
+        data = {
+            'username': 'testuser',
+            'password': 'wrongpassword'
+        }
+        response = self.client.post(reverse('login'), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class TaskTests(APITestCase):
